@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
+import { getBrandLogo } from '@/lib/utils/brandUtils';
 import {
     Copy,
     Download,
@@ -267,11 +268,37 @@ export default function VoucherCard({ voucher, onUpdate }: VoucherCardProps) {
 
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">{voucher.brand}</h3>
-                        <div className="flex items-center gap-2 text-2xl font-bold text-blue-600">
-                            <DollarSign className="w-5 h-5" />
-                            {voucher.value.toLocaleString('vi-VN')}đ
+                    <div className="flex items-start gap-3 flex-1">
+                        {/* Brand Logo */}
+                        <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center border border-gray-200">
+                            {getBrandLogo(voucher.brand) ? (
+                                <img
+                                    src={getBrandLogo(voucher.brand)!}
+                                    alt={voucher.brand}
+                                    className="w-full h-full object-contain p-1"
+                                    onError={(e) => {
+                                        // Fallback to text logo on error
+                                        e.currentTarget.style.display = 'none';
+                                        const parent = e.currentTarget.parentElement;
+                                        if (parent) {
+                                            parent.innerHTML = `<span class="text-lg font-bold text-blue-600">${voucher.brand.charAt(0)}</span>`;
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <span className="text-lg font-bold text-blue-600">
+                                    {voucher.brand.charAt(0)}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Brand Name & Value */}
+                        <div className="flex-1">
+                            <h3 className="text-lg font-bold text-gray-900 mb-1">{voucher.brand}</h3>
+                            <div className="flex items-center gap-2 text-2xl font-bold text-blue-600">
+                                <DollarSign className="w-5 h-5" />
+                                {voucher.value.toLocaleString('vi-VN')}đ
+                            </div>
                         </div>
                     </div>
                     {getStatusBadge()}

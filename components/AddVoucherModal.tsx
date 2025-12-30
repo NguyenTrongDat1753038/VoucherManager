@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, FormEvent, ChangeEvent } from 'react';
+import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { X, Upload, Loader2 } from 'lucide-react';
+import { BrandAutocomplete } from '@/components/BrandAutocomplete';
 
 interface AddVoucherModalProps {
     userId: string;
@@ -16,10 +17,20 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
     const [type, setType] = useState<'CODE' | 'IMAGE'>('CODE');
     const [code, setCode] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null); // Preview URL
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [uploadProgress, setUploadProgress] = useState('');
     const supabase = createClient();
+
+    // Cleanup preview URL on unmount or when file changes
+    useEffect(() => {
+        return () => {
+            if (imagePreview) {
+                URL.revokeObjectURL(imagePreview);
+            }
+        };
+    }, [imagePreview]);
 
     const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -28,6 +39,15 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
                 setError('File ảnh không được vượt quá 5MB');
                 return;
             }
+
+            // Cleanup old preview
+            if (imagePreview) {
+                URL.revokeObjectURL(imagePreview);
+            }
+
+            // Create new preview
+            const previewUrl = URL.createObjectURL(file);
+            setImagePreview(previewUrl);
             setImageFile(file);
             setError('');
         }
@@ -124,16 +144,14 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
                         <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-2">
                             Thương hiệu <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            id="brand"
-                            type="text"
+                        <BrandAutocomplete
                             value={brand}
-                            onChange={(e) => setBrand(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                            placeholder="Ví dụ: Traveloka, Golden Gate, Highlands..."
-                            required
-                            disabled={loading}
+                            onValueChange={setBrand}
+                            placeholder="Chọn hoặc nhập tên thương hiệu..."
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                            💡 Chọn từ 400+ brands hoặc gõ tên mới rồi nhấn Enter
+                        </p>
                     </div>
 
                     {/* Value */}
@@ -165,8 +183,8 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
                                 type="button"
                                 onClick={() => setType('CODE')}
                                 className={`p-4 border-2 rounded-lg transition-all ${type === 'CODE'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                        : 'border-gray-300 hover:border-gray-400'
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                    : 'border-gray-300 hover:border-gray-400'
                                     }`}
                                 disabled={loading}
                             >
@@ -177,8 +195,8 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
                                 type="button"
                                 onClick={() => setType('IMAGE')}
                                 className={`p-4 border-2 rounded-lg transition-all ${type === 'IMAGE'
-                                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                                        : 'border-gray-300 hover:border-gray-400'
+                                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                    : 'border-gray-300 hover:border-gray-400'
                                     }`}
                                 disabled={loading}
                             >
@@ -234,6 +252,35 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
                                 />
                                 <p className="text-xs text-gray-500 mt-2">PNG, JPG, WEBP (tối đa 5MB)</p>
                             </div>
+
+                            {/* Image Preview */}
+                            {imagePreview && (
+                                <div className="mt-4">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">👁️ Xem trước:</p>
+                                    <div className="relative w-full max-w-sm mx-auto border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="w-full h-auto object-contain"
+                                            style={{ maxHeight: '300px' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (imagePreview) {
+                                                    URL.revokeObjectURL(imagePreview);
+                                                }
+                                                setImagePreview(null);
+                                                setImageFile(null);
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                                            disabled={loading}
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

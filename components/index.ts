@@ -6,3 +6,4 @@ export { default as VoucherList } from './VoucherList';
 export { default as AddVoucherModal } from './AddVoucherModal';
 export { default as StatsOverview } from './StatsOverview';
 export { default as ImportVoucherDialog } from './ImportVoucherDialog';
+export { BrandAutocomplete } from './BrandAutocomplete';
