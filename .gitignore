@@ -25,10 +25,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# env files
+# local env files
 .env*.local
-.env
 .env.production
+.env.internal
 
 # vercel
 .vercel
@@ -37,12 +37,22 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# docker & deployment
-certbot/
-nginx/ssl/
-/var/log/duckdns.log
+# Local scripts and configs (production-specific)
+start-internal.bat
+start-internal.sh
+PORT_MAPPING.md
+cloudflared.exe
 
-# CSV test files
-VoucherTemplate.csv
-VoucherTemplate_Fixed.csv
+# Logs
+logs/
+*.log
 
+# Backups
+backups/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
