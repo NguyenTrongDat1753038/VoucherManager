@@ -1,0 +1,95 @@
+name: Production Deployment
+
+on:
+  # Chỉ chạy khi có tag mới (release)
+  push:
+    tags:
+      - 'v*'
+  
+  # Hoặc khi manually trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Build application
+      run: npm run build
+    
+    - name: Test Docker build
+      run: |
+        docker build -t voucher-manager:test .
+        docker run --rm voucher-manager:test npm run test
+
+  deploy-to-production-branch:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Configure Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+    
+    - name: Create/Update production branch
+      run: |
+        # Tạo hoặc cập nhật production branch từ tag hiện tại
+        git checkout -B production
+        git push origin production --force
+    
+    - name: Create deployment artifact
+      run: |
+        # Tạo file thông tin deployment
+        echo "DEPLOYMENT_TAG=${GITHUB_REF#refs/tags/}" >> deployment.info
+        echo "DEPLOYMENT_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> deployment.info
+        echo "DEPLOYMENT_COMMIT=${GITHUB_SHA}" >> deployment.info
+        git add deployment.info
+        git commit -m "Add deployment info for ${GITHUB_REF#refs/tags/}"
+        git push origin production
+
+  notify:
+    needs: [test, deploy-to-production-branch]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify success
+      if: needs.deploy-to-production-branch.result == 'success'
+      run: |
+        echo "✅ Production deployment ready for ${GITHUB_REF#refs/tags/}"
+        # Có thể thêm webhook notification ở đây
+    
+    - name: Notify failure
+      if: needs.test.result == 'failure' || needs.deploy-to-production-branch.result == 'failure'
+      run: |
+        echo "❌ Production deployment failed"
+        # Có thể thêm webhook notification ở đây
