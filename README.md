@@ -29,7 +29,7 @@ A professional, production-ready voucher management system built with Next.js 15
 ### 🚀 Performance
 - **Server Components**: Optimized rendering with Next.js 15
 - **Docker Deployment**: Production-ready containerization
-- **Nginx Reverse Proxy**: Load balancing and caching
+- **Cloudflare Edge**: Global CDN and caching
 - **Health Checks**: Automatic service monitoring
 
 ### 🎨 User Experience
@@ -52,8 +52,8 @@ A professional, production-ready voucher management system built with Next.js 15
 - **Backend**: Supabase (PostgreSQL + Auth + RLS)
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
-- **Deployment**: Docker + Nginx + Let's Encrypt
-- **DNS**: DuckDNS (for homelab)
+- **Deployment**: Docker + Cloudflare Tunnel
+- **SSL/CDN**: Cloudflare (automatic HTTPS)
 
 ---
 
@@ -110,15 +110,12 @@ See **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** for complete guide.
 cp .env.production.example .env.production
 # Edit .env.production with Supabase credentials
 
+# Update TUNNEL_TOKEN in docker-compose.yml
+
 # Deploy with Docker
-chmod +x scripts/*.sh
-./scripts/deploy.sh
+docker-compose up -d --build
 
-# Setup SSL
-./scripts/setup-ssl.sh
-
-# Setup DuckDNS auto-update
-./scripts/setup-cron.sh
+# That's it! SSL is automatic via Cloudflare
 ```
 
 ---
@@ -154,10 +151,11 @@ chmod +x scripts/*.sh
 - **Race Conditions**: Optimistic locking with version control
 - **Audit Trail**: Complete history of all changes
 - **Rate Limiting**: Request throttling (10 req/s general, 5 req/m login)
-- **HTTPS**: SSL/TLS encryption with Let's Encrypt
+- **HTTPS**: SSL/TLS encryption via Cloudflare
 - **CORS**: Proper origin validation
 - **SQL Injection**: Parameterized queries via Supabase
-- **XSS Protection**: Security headers via Nginx
+- **DDoS Protection**: Cloudflare WAF
+- **IP Masking**: Real IP hidden behind Cloudflare
 
 ---
 
@@ -202,7 +200,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Supabase](https://supabase.com/) - Open Source Firebase Alternative
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS
 - [Lucide](https://lucide.dev/) - Beautiful icons
-- [DuckDNS](https://www.duckdns.org/) - Free Dynamic DNS
+- [Cloudflare](https://www.cloudflare.com/) - CDN, DNS, and Tunnel
 
 ---
 

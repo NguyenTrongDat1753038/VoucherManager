@@ -1,41 +1,55 @@
 # 🚀 Deployment Guide - Voucher Manager Homelab
 
-Hướng dẫn đầy đủ để deploy Voucher Manager lên Mini PC homelab server với DuckDNS + Docker + SSL.
+Hướng dẫn đầy đủ để deploy Voucher Manager lên Mini PC homelab server với **Cloudflare Tunnel**.
 
 ---
 
 ## 📋 Prerequisites
 
 **Trên Mini PC Server:**
-- ✅ Ubuntu/Debian Linux (hoặc Windows với WSL2)
+- ✅ Windows/Ubuntu/Debian Linux (hoặc Windows với WSL2)
 - ✅ Docker & Docker Compose đã cài
 - ✅ Git đã cài
-- ✅ Port 80, 443 accessible từ internet
 
-**Đã hoàn thành:**
-- ✅ DuckDNS domain: `primebuvouchermanager.duckdns.org`
-- ✅ DuckDNS Token: `e41cac8b-8fc1-48c8-a1ed-8a815b074e3f`
+**Đã chuẩn bị:**
+- ✅ Cloudflare account
+- ✅ Domain đã thêm vào Cloudflare (vd: `primeebu.com`)
 - ✅ Supabase project đã setup (chạy `setup.sql` và `improvements.sql`)
+
+---
+
+## 🎯 Lý do chọn Cloudflare Tunnel
+
+| Tính năng | Cloudflare Tunnel | ~~Certbot + Nginx + DuckDNS~~ |
+|-----------|-------------------|-------------------------------|
+| **Port forwarding** | ❌ Không cần | ✅ Cần mở 80, 443 |
+| **SSL Certificate** | ✅ Tự động | Phải setup Certbot |
+| **Gia hạn SSL** | ✅ Tự động | Cron job |
+| **IP ẩn** | ✅ Không lộ | ❌ Bị lộ |
+| **DDoS Protection** | ✅ Có sẵn | ❌ Không |
 
 ---
 
 ## 🔧 Step-by-Step Deployment
 
-### **Bước 1: Setup Router Port Forwarding**
+### **Bước 1: Tạo Cloudflare Tunnel**
 
-Vào router của bạn (thường là `192.168.1.1`) và forward:
-- **Port 80** → IP của Mini PC → Port 80 (HTTP)
-- **Port 443** → IP của Mini PC → Port 443 (HTTPS)
+1. Đăng nhập [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Chọn **Zero Trust** → **Networks** → **Tunnels**
+3. Click **Create a tunnel**
+4. Đặt tên tunnel (vd: `voucher-manager`)
+5. Copy **Tunnel Token** được cấp
 
-**Kiểm tra:**
-```bash
-curl https://www.duckdns.org/update?domains=primebuvouchermanager&token=e41cac8b-8fc1-48c8-a1ed-8a815b074e3f
-# Phải trả về: OK
-```
+### **Bước 2: Cấu hình Public Hostname**
+
+Trong tunnel configuration:
+- **Subdomain**: `vouchermanager`  
+- **Domain**: `primeebu.com`
+- **Service**: `http://voucher-app:3000`
 
 ---
 
-### **Bước 2: Clone Project lên Mini PC**
+### **Bước 3: Clone Project lên Mini PC**
 
 ```bash
 # Clone repo (hoặc copy folder qua)
@@ -49,7 +63,7 @@ cd /path/to/VoucherManager
 
 ---
 
-### **Bước 3: Cấu hình Environment Variables**
+### **Bước 4: Cấu hình Environment Variables**
 
 ```bash
 # Copy template
@@ -63,69 +77,39 @@ nano .env.production
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-NEXT_PUBLIC_SITE_URL=https://primebuvouchermanager.duckdns.org
+NEXT_PUBLIC_SITE_URL=https://vouchermanager.primeebu.com
 NODE_ENV=production
 ```
 
 ---
 
-### **Bước 4: Sửa Next.js Config để support Docker**
+### **Bước 5: Cập nhật Tunnel Token**
 
-Thêm vào `next.config.ts`:
-```typescript
-const nextConfig: NextConfig = {
-  output: 'standalone',  // Thêm dòng này!
-  // ... các config khác
-};
+Sửa `docker-compose.yml` với token của bạn:
+
+```yaml
+tunnel:
+  image: cloudflare/cloudflared:latest
+  container_name: voucher-tunnel
+  restart: unless-stopped
+  command: tunnel run
+  environment:
+    - TUNNEL_TOKEN=<your-tunnel-token>
 ```
 
 ---
 
-### **Bước 5: Build và Deploy**
+### **Bước 6: Build và Deploy**
 
 ```bash
-# Cho quyền executable cho scripts
+# Cho quyền executable cho scripts (Linux/Mac)
 chmod +x scripts/*.sh
 
 # Deploy app
-./scripts/deploy.sh
+docker-compose up -d --build
 ```
 
 Chờ khoảng 2-3 phút để build xong.
-
----
-
-### **Bước 6: Setup SSL Certificate**
-
-```bash
-# Sửa email trong script (dòng 7)
-nano scripts/setup-ssl.sh  
-# Thay your-email@example.com bằng email thật của bạn
-
-# Chạy setup SSL
-./scripts/setup-ssl.sh
-```
-
-**Lưu ý:** Trước khi chạy lệnh này:
-- ✅ Port 80 phải được forward
-- ✅ Domain phải trỏ đến IP của bạn
-- ✅ Docker containers phải đang chạy
-
----
-
-### **Bước 7: Setup Auto-Update DuckDNS IP**
-
-Vì IP nhà bạn có thể thay đổi, cần auto-update:
-
-```bash
-# Setup cron job
-./scripts/setup-cron.sh
-
-# Test thử
-bash scripts/duckdns-update.sh
-```
-
-Cron sẽ update IP mỗi 5 phút.
 
 ---
 
@@ -145,21 +129,16 @@ docker-compose logs -f
 
 # Hoặc chỉ logs của app
 docker-compose logs -f voucher-app
+
+# Xem logs tunnel
+docker-compose logs -f tunnel
 ```
 
-### **Test Local:**
-```bash
-# Test HTTP
-curl http://localhost
+### **Test Access:**
 
-# Test HTTPS
-curl https://primebuvouchermanager.duckdns.org
+Mở browser:
 ```
-
-### **Test từ bên ngoài:**
-Mở browser trên điện thoại (tắt WiFi, dùng 4G):
-```
-https://primebuvouchermanager.duckdns.org
+https://vouchermanager.primeebu.com
 ```
 
 ---
@@ -169,7 +148,7 @@ https://primebuvouchermanager.duckdns.org
 ### **Update Code:**
 ```bash
 git pull
-./scripts/deploy.sh
+docker-compose up -d --build
 ```
 
 ### **View Logs:**
@@ -187,19 +166,13 @@ docker-compose restart
 docker-compose down
 ```
 
-### **Renew SSL (tự động, nhưng có thể force):**
-```bash
-docker-compose run --rm certbot renew
-docker-compose restart nginx
-```
-
 ---
 
 ## 🛡️ Security Checklist
 
-- ✅ Firewall: Chỉ mở port 80, 443
-- ✅ SSL: HTTPS enabled với Let's Encrypt
-- ✅ Rate limiting: Nginx có rate limit
+- ✅ HTTPS: Tự động từ Cloudflare
+- ✅ DDoS Protection: Cloudflare WAF
+- ✅ IP ẩn: Qua Cloudflare proxy
 - ✅ Supabase RLS: Row Level Security enabled
 - ✅ Environment variables: Không commit `.env.production`
 - ✅ Update: Thường xuyên `docker-compose pull`
@@ -209,14 +182,9 @@ docker-compose restart nginx
 ## 🐛 Troubleshooting
 
 ### **Lỗi: Cannot connect to domain**
-1. Check port forwarding trên router
-2. Check DuckDNS IP: `curl https://www.duckdns.org/update?domains=primebuvouchermanager&token=e41cac8b-8fc1-48c8-a1ed-8a815b074e3f`
-3. Check firewall: `sudo ufw status`
-
-### **Lỗi: SSL certificate failed**
-1. Chắc port 80 đã forward
-2. Thử manual: `docker-compose logs certbot`
-3. Check domain DNS: `nslookup primebuvouchermanager.duckdns.org`
+1. Check tunnel logs: `docker-compose logs tunnel`
+2. Verify tunnel token đúng
+3. Check Public Hostname trong Cloudflare Dashboard
 
 ### **Lỗi: App không start**
 ```bash
@@ -228,6 +196,11 @@ docker-compose logs voucher-app
 1. Check `.env.production` đúng chưa
 2. Test Supabase API: `curl https://your-project.supabase.co`
 3. Check RLS policies đã enable chưa
+
+### **Tunnel không kết nối được**
+1. Kiểm tra Internet connection
+2. Tạo token mới từ Cloudflare Dashboard
+3. Restart tunnel: `docker-compose restart tunnel`
 
 ---
 
@@ -245,7 +218,7 @@ docker stats
 
 ### **Check Health:**
 ```bash
-curl https://primebuvouchermanager.duckdns.org/api/health
+curl https://vouchermanager.primeebu.com/api/health
 ```
 
 ---
@@ -255,7 +228,7 @@ curl https://primebuvouchermanager.duckdns.org/api/health
 1. **Backup Strategy**: Setup daily backup cho Supabase data
 2. **Monitoring**: Cài Uptime Kuma hoặc similar
 3. **Auto-deploy**: Setup GitHub Actions để auto-deploy
-4. **Analytics**: Add Google Analytics/Plausible
+4. **Cloudflare Access**: Giới hạn ai có thể truy cập (optional)
 
 ---
 
@@ -263,7 +236,7 @@ curl https://primebuvouchermanager.duckdns.org/api/health
 
 Nếu có vấn đề, check:
 1. Docker logs: `docker-compose logs`
-2. DuckDNS logs: `cat /var/log/duckdns.log`
-3. Nginx logs: `docker-compose logs nginx`
+2. Tunnel logs: `docker-compose logs tunnel`
+3. App logs: `docker-compose logs voucher-app`
 
 **Happy deploying! 🚀**

@@ -1,118 +1,150 @@
 ---
-description: Setup HTTPS with SSL Certificate for VoucherManager
+description: Setup HTTPS with Cloudflare Tunnel for VoucherManager
 ---
 
-# Setup HTTPS với SSL Certificate
+# Setup HTTPS với Cloudflare Tunnel
+
+## ⚠️ Lưu ý quan trọng
+
+Dự án này đã chuyển từ **Certbot + Nginx + DuckDNS** sang **Cloudflare Tunnel** để đơn giản hóa việc deploy và tăng bảo mật.
+
+### Lý do chuyển đổi:
+- ✅ **Không cần port forwarding** trên router (80, 443)
+- ✅ **SSL tự động** - Cloudflare cấp và gia hạn certificate
+- ✅ **Bảo mật cao hơn** - IP thật không bị lộ
+- ✅ **Đơn giản hơn** - Chỉ cần 1 container tunnel
+
+---
 
 ## Prerequisites
+
+- [x] Có tài khoản Cloudflare
+- [x] Domain đã được thêm vào Cloudflare
 - [x] Docker và Docker Compose đang chạy
-- [ ] Port 80 đã được forward trên router
-- [ ] Port 443 đã được forward trên router
-- [ ] DuckDNS đang trỏ đúng IP public
 
-## Steps
+---
 
-### 1. Kiểm tra Port Forwarding trên Router
+## Cách hoạt động
 
-Đăng nhập vào router admin panel và thêm/kiểm tra rules:
-
-**Port 80 (HTTP):**
-- External Port: `80`
-- Internal IP: `<IP mini PC>` (ví dụ: 192.168.1.100)
-- Internal Port: `80`
-- Protocol: `TCP`
-
-**Port 443 (HTTPS):**
-- External Port: `443`
-- Internal IP: `<IP mini PC>` (ví dụ: 192.168.1.100)
-- Internal Port: `443`
-- Protocol: `TCP`
-
-### 2. Kiểm tra DuckDNS
-
-Verify domain đang trỏ đúng IP:
-
-```bash
-nslookup primebuvouchermanager.duckdns.org
+```
+[User] → [vouchermanager.primeebu.com] → [Cloudflare Edge]
+                                              ↓
+                                        [Cloudflare Tunnel]
+                                              ↓
+                                    [voucher-app container :3000]
 ```
 
-IP trả về phải khớp với IP public của bạn.
+---
 
-### 3. Cập nhật Email trong SSL Script
+## Setup Steps
 
-Mở file `scripts/setup-ssl.sh` và thay đổi:
-```bash
-EMAIL="your-email@example.com"  # Đổi thành email thật của bạn
+### 1. Tạo Cloudflare Tunnel (nếu chưa có)
+
+1. Đăng nhập [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Chọn **Zero Trust** → **Networks** → **Tunnels**
+3. Click **Create a tunnel**
+4. Đặt tên tunnel (vd: `voucher-manager`)
+5. Copy **Tunnel Token** được cấp
+
+### 2. Cấu hình Public Hostname
+
+Trong tunnel configuration:
+- **Subdomain**: `vouchermanager`  
+- **Domain**: `primeebu.com`
+- **Service**: `http://voucher-app:3000`
+
+### 3. Cập nhật docker-compose.yml
+
+Token đã được cấu hình trong `docker-compose.yml`:
+
+```yaml
+services:
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: voucher-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=<your-tunnel-token>
+    networks:
+      - voucher-network
 ```
 
-### 4. Đảm bảo Docker Services đang chạy
+### 4. Start Services
 
-```bash
-docker-compose ps
-```
-
-Nếu chưa chạy:
 ```bash
 docker-compose up -d
 ```
 
-### 5. Chạy Script Setup SSL
+### 5. Verify
 
-**Trên Windows (dùng Git Bash hoặc WSL):**
-```bash
-bash scripts/setup-ssl.sh
-```
+Truy cập: `https://vouchermanager.primeebu.com`
 
-**Hoặc chạy trực tiếp với Docker:**
-```bash
-docker-compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot --email "your-email@example.com" --agree-tos --no-eff-email -d primebuvouchermanager.duckdns.org
-```
-
-### 6. Enable HTTPS trong Nginx Config
-
-Uncomment HTTPS server block trong `nginx/nginx.conf` (dòng 110-184).
-
-### 7. Restart Nginx
-
-```bash
-docker-compose restart nginx
-```
-
-### 8. Verify HTTPS
-
-Truy cập: `https://primebuvouchermanager.duckdns.org`
-
-Kiểm tra certificate:
-```bash
-openssl s_client -connect primebuvouchermanager.duckdns.org:443 -servername primebuvouchermanager.duckdns.org
-```
+---
 
 ## Troubleshooting
 
-### Lỗi: "Failed to obtain SSL certificate"
+### Tunnel không kết nối được
 
-**Nguyên nhân thường gặp:**
-1. Port 80 chưa được forward đúng
-2. DuckDNS chưa cập nhật IP
-3. Nginx chưa chạy hoặc không serve `.well-known/acme-challenge/`
+1. **Kiểm tra logs:**
+```bash
+docker logs voucher-tunnel
+```
 
-**Giải pháp:**
-- Kiểm tra port forwarding
-- Đợi DuckDNS propagate (5-10 phút)
-- Restart Docker services
+2. **Kiểm tra token:**
+- Token phải đúng và chưa bị revoke
+- Có thể tạo token mới từ Cloudflare Dashboard
 
-### Lỗi: "Connection refused" khi truy cập HTTPS
+### Website không load
 
-**Nguyên nhân:**
-- Port 443 chưa được forward
-- Nginx chưa enable HTTPS block
+1. **Kiểm tra app container:**
+```bash
+docker logs voucher-manager
+```
 
-**Giải pháp:**
-- Kiểm tra port forwarding cho port 443
-- Verify HTTPS block đã được uncomment trong nginx.conf
+2. **Kiểm tra network:**
+```bash
+docker network inspect vouchermanager_voucher-network
+```
 
-## Auto-Renewal
+3. **Verify Public Hostname config:**
+- Service URL phải là `http://voucher-app:3000` (container name, không phải localhost)
 
-Certbot container đã được config để tự động renew certificate mỗi 12 giờ (xem `docker-compose.yml`).
+---
 
-Không cần làm gì thêm!
+## Bảo mật
+
+### Đã có sẵn:
+- ✅ HTTPS mặc định
+- ✅ DDoS protection từ Cloudflare
+- ✅ IP gốc ẩn sau Cloudflare
+
+### Khuyến nghị thêm:
+- Enable **Cloudflare Access** nếu muốn giới hạn ai có thể truy cập
+- Enable **Bot Fight Mode** trong dashboard
+
+---
+
+## So sánh với phương án cũ
+
+| Tính năng | Cloudflare Tunnel | ~~Certbot + Nginx + DuckDNS~~ |
+|-----------|-------------------|-------------------------------|
+| **Port forwarding** | ❌ Không cần | ✅ Cần mở 80, 443 |
+| **SSL Certificate** | Tự động | Phải setup Certbot |
+| **Gia hạn SSL** | Tự động | Cron job |
+| **Domain** | Domain mua | DuckDNS subdomain |
+| **Bảo mật** | IP ẩn | IP lộ |
+| **Containers cần thiết** | 2 (app + tunnel) | 3 (app + nginx + certbot) |
+
+---
+
+## Files đã được cleanup
+
+Các files sau đã được xóa vì không còn cần thiết:
+
+- ~~`certbot/`~~ - Thư mục certbot config
+- ~~`nginx/`~~ - Thư mục nginx config  
+- ~~`scripts/duckdns-update.sh`~~ - DuckDNS update script
+- ~~`scripts/setup-ssl.sh`~~ - SSL setup script
+- ~~`scripts/setup-ssl.ps1`~~ - SSL setup PowerShell script
+- ~~`scripts/setup-cron.sh`~~ - Cron setup script

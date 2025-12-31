@@ -19,25 +19,13 @@ if [ -d .git ]; then
     git pull
 fi
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install
-
-# Build Docker images
-echo "🐳 Building Docker images..."
-docker-compose build --no-cache
-
-# Stop existing containers
-echo "🛑 Stopping existing containers..."
-docker-compose down
-
-# Start services
-echo "▶️  Starting services..."
-docker-compose up -d
+# Build and start Docker containers
+echo "🐳 Building and starting Docker containers..."
+docker-compose up -d --build
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."
-sleep 10
+sleep 15
 
 # Check health
 echo "🏥 Checking service health..."
@@ -50,12 +38,11 @@ docker-compose logs --tail=20
 echo ""
 echo "✅ Deployment complete!"
 echo "🌐 Your app should be accessible at:"
-echo "   - HTTP:  http://primebuvouchermanager.duckdns.org"
-echo "   - HTTPS: https://primebuvouchermanager.duckdns.org (after SSL setup)"
+echo "   - https://vouchermanager.primeebu.com"
 echo ""
-echo "📝 Next steps:"
-echo "   1. Make sure port 80 and 443 are forwarded in your router"
-echo "   2. Run ./scripts/setup-ssl.sh to get SSL certificate"
-echo "   3. Setup cron for DuckDNS updates: ./scripts/setup-cron.sh"
+echo "📝 Notes:"
+echo "   - SSL is handled automatically by Cloudflare"
+echo "   - No port forwarding needed (Cloudflare Tunnel)"
 echo ""
 echo "📊 Monitor logs with: docker-compose logs -f"
+echo "🔍 Check tunnel: docker-compose logs tunnel"

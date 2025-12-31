@@ -34,14 +34,12 @@ VoucherManager/
 │   ├── setup.sql                    # Initial schema
 │   └── improvements.sql             # Security enhancements
 │
-├── 📂 nginx/                        # Nginx config
-│   └── nginx.conf                   # Reverse proxy config
-│
 ├── 📂 scripts/                      # Deployment scripts
 │   ├── deploy.sh                    # Main deployment
-│   ├── duckdns-update.sh            # IP update
-│   ├── setup-ssl.sh                 # SSL setup
-│   └── setup-cron.sh                # Cron setup
+│   ├── auto-update.sh               # Auto update script
+│   ├── auto-update.bat              # Auto update (Windows)
+│   ├── safe-update.bat              # Safe update with rollback
+│   └── manage-autoupdate.bat        # Management interface
 │
 ├── 📂 docs/                         # Documentation
 │   ├── QUICKSTART.md                # 5-min quick start
@@ -56,6 +54,10 @@ VoucherManager/
 │   ├── CHECKLIST.md                 # Pre-deploy checklist
 │   └── PROJECT_SUMMARY.md           # Project overview
 │
+├── 📂 .agent/                       # AI Agent workflows
+│   └── 📂 workflows/
+│       └── setup-https.md           # Cloudflare Tunnel guide
+│
 ├── 📄 Dockerfile                    # Docker build config
 ├── 📄 docker-compose.yml            # Docker orchestration
 ├── 📄 .dockerignore                 # Docker build exclusions
@@ -66,8 +68,9 @@ VoucherManager/
 ├── 📄 package.json                  # Dependencies
 ├── 📄 .env.production.example       # Env template
 ├── 📄 .gitignore                    # Git exclusions
+├── 📄 DEPLOYMENT_STRATEGY.md        # Deployment strategy
 ├── 📄 LICENSE                       # MIT License
-└── 📄 README.md                     # This file
+└── 📄 README.md                     # Project readme
 ```
 
 ## 🎯 Key Directories
@@ -84,9 +87,6 @@ Supabase clients and type definitions.
 ### `/supabase` - Database
 SQL scripts for database setup and migrations.
 
-### `/nginx` - Reverse Proxy
-Production Nginx configuration with SSL.
-
 ### `/scripts` - Automation
 Deployment and maintenance scripts.
 
@@ -96,7 +96,7 @@ Comprehensive guides and documentation.
 ## 📦 Important Files
 
 - **`Dockerfile`** - Production Docker image
-- **`docker-compose.yml`** - Multi-container setup
+- **`docker-compose.yml`** - Multi-container setup (App + Cloudflare Tunnel)
 - **`middleware.ts`** - Authentication middleware
 - **`next.config.ts`** - Next.js config (standalone mode)
 - **`.env.production.example`** - Environment template
@@ -107,11 +107,11 @@ Comprehensive guides and documentation.
 2. **Production**: See `docs/DEPLOYMENT.md`
 3. **Fast Deploy**: See `docs/QUICKSTART_DEPLOY.md`
 
-## 🔒 Security Files
+## 🔒 Security
 
-- **`supabase/setup.sql`** - RLS policies
-- **`supabase/improvements.sql`** - Advanced security
-- **`nginx/nginx.conf`** - Rate limiting, headers
+- **Supabase RLS** - Row Level Security policies
+- **Cloudflare** - DDoS protection, SSL, IP masking
+- **Next.js Middleware** - Authentication checks
 
 ## 📝 License
 
