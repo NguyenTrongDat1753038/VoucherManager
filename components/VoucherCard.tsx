@@ -87,7 +87,7 @@ export default function VoucherCard({ voucher, onUpdate }: VoucherCardProps) {
                 p_voucher_id: voucher.id,
                 p_customer_name: customerName,
                 p_expected_status: voucher.status,
-            });
+            } as any);
 
             if (rpcError) {
                 throw new Error(rpcError.message);
@@ -95,13 +95,14 @@ export default function VoucherCard({ voucher, onUpdate }: VoucherCardProps) {
 
             // Check if function returned success
             if (data && typeof data === 'object' && 'success' in data) {
-                if (!data.success) {
+                const result = data as any;
+                if (!result.success) {
                     // Handle specific error codes
-                    const errorCode = data.code as string;
-                    let errorMessage = data.error as string;
+                    const errorCode = result.code as string;
+                    let errorMessage = result.error as string;
 
                     if (errorCode === 'STATUS_CHANGED') {
-                        errorMessage = `${errorMessage}\n\nTrạng thái hiện tại: ${data.current_status}`;
+                        errorMessage = `${errorMessage}\n\nTrạng thái hiện tại: ${result.current_status}`;
                     } else if (errorCode === 'TOO_FAST') {
                         errorMessage = 'Bạn đang thao tác quá nhanh. Vui lòng đợi 3 giây.';
                     }
@@ -134,16 +135,17 @@ export default function VoucherCard({ voucher, onUpdate }: VoucherCardProps) {
             const { data, error: rpcError } = await supabase.rpc('mark_voucher_as_sold', {
                 p_voucher_id: voucher.id,
                 p_expected_status: voucher.status,
-            });
+            } as any);
 
             if (rpcError) {
                 throw new Error(rpcError.message);
             }
 
             if (data && typeof data === 'object' && 'success' in data) {
-                if (!data.success) {
-                    const errorCode = data.code as string;
-                    let errorMessage = data.error as string;
+                const result = data as any;
+                if (!result.success) {
+                    const errorCode = result.code as string;
+                    let errorMessage = result.error as string;
 
                     if (errorCode === 'STATUS_CHANGED') {
                         errorMessage = `${errorMessage}\n\nVui lòng làm mới trang.`;
@@ -174,15 +176,16 @@ export default function VoucherCard({ voucher, onUpdate }: VoucherCardProps) {
             const { data, error: rpcError } = await supabase.rpc('mark_voucher_as_expired', {
                 p_voucher_id: voucher.id,
                 p_expected_status: voucher.status,
-            });
+            } as any);
 
             if (rpcError) {
                 throw new Error(rpcError.message);
             }
 
             if (data && typeof data === 'object' && 'success' in data) {
-                if (!data.success) {
-                    setError(data.error as string);
+                const result = data as any;
+                if (!result.success) {
+                    setError(result.error as string);
                     setTimeout(() => onUpdate(), 500);
                     return;
                 }

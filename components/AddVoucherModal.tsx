@@ -4,6 +4,7 @@ import { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { X, Upload, Loader2 } from 'lucide-react';
 import { BrandAutocomplete } from '@/components/BrandAutocomplete';
+import type { Database } from '@/lib/supabase/database.types';
 
 interface AddVoucherModalProps {
     userId: string;
@@ -99,7 +100,7 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
 
             // Insert voucher
             setUploadProgress('Đang lưu voucher...');
-            const { error: insertError } = await supabase.from('vouchers').insert({
+            const voucherData: Database['public']['Tables']['vouchers']['Insert'] = {
                 brand: brand.trim(),
                 value: parseInt(value),
                 type,
@@ -107,7 +108,9 @@ export default function AddVoucherModal({ userId, onClose, onSuccess }: AddVouch
                 image_url: type === 'IMAGE' ? imageUrl : null,
                 owner_id: userId,
                 status: 'UNUSED',
-            });
+            };
+
+            const { error: insertError } = await supabase.from('vouchers').insert(voucherData as any);
 
             if (insertError) {
                 throw new Error('Lưu voucher thất bại: ' + insertError.message);

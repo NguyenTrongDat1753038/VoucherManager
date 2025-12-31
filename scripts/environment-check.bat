@@ -1,4 +1,6 @@
 @echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
 echo 🔍 KIỂM TRA MÔI TRƯỜNG PRODUCTION
 
 echo.
@@ -17,7 +19,8 @@ echo.
 echo 🌐 Network Information:
 echo ======================
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do (
-    set INTERNAL_IP=%%a
+    set "IP_TEMP=%%a"
+    set "INTERNAL_IP=!IP_TEMP: =!"
     echo Internal IP: !INTERNAL_IP!
     goto :found_ip
 )
@@ -51,22 +54,26 @@ docker-compose ps
 echo.
 echo 💾 Disk Space:
 echo ==============
-for /f "tokens=3" %%i in ('dir /-c ^| find "bytes free"') do (
-    set /a FREE_GB=%%i/1073741824
-    echo Free Space: !FREE_GB! GB
-)
+powershell -Command "$drive = Get-PSDrive C; [Math]::Round($drive.Free / 1GB, 2)" > temp_free.txt
+set /p FREE_GB=<temp_free.txt
+del temp_free.txt
+echo Free Space (C:): %FREE_GB% GB
 
 echo.
 echo 🏥 Health Check:
 echo ===============
-curl -s -o nul -w "HTTP Status: %%{http_code}" http://%INTERNAL_IP: =%:8080/api/health
+if not "!INTERNAL_IP!"=="" (
+    curl -s -o nul -w "HTTP Status: %%{http_code}" http://!INTERNAL_IP!:8080/api/health
+) else (
+    echo ❌ Cannot perform health check: No Internal IP found
+)
 echo.
 
 echo.
 echo 📊 Resource Usage:
 echo =================
-wmic cpu get loadpercentage /value | findstr LoadPercentage
-wmic OS get TotalVisibleMemorySize,FreePhysicalMemory /value | findstr /C:"TotalVisibleMemorySize" /C:"FreePhysicalMemory"
+powershell -Command "$cpu = Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; Write-Host ('CPU Usage: {0}%%' -f $cpu)"
+powershell -Command "$os = Get-CimInstance Win32_OperatingSystem; $total = $os.TotalVisibleMemorySize; $free = $os.FreePhysicalMemory; $usage = [Math]::Round((($total - $free) / $total) * 100, 2); $usedGB = [Math]::Round(($total-$free)/1MB, 2); $totalGB = [Math]::Round($total/1MB, 2); Write-Host ('RAM Usage: {0}%% ({1}GB / {2}GB)' -f $usage, $usedGB, $totalGB)"
 
 echo.
 echo 🔒 Security Check:

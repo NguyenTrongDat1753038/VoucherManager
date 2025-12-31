@@ -165,7 +165,7 @@ export default function VouchersClient({ user }: VouchersClientProps) {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Stats Overview */}
-                {showStats && <StatsOverview vouchers={vouchers} />}
+                {showStats && <StatsOverview vouchers={vouchers} onStatusClick={setActiveTab} />}
 
                 {/* Search & Add */}
                 <div className="mb-6 flex flex-col sm:flex-row gap-4">
