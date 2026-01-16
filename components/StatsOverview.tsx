@@ -53,8 +53,9 @@ export default function StatsOverview({ vouchers, onStatusClick }: StatsOverview
         return acc;
     }, {} as Record<string, { count: number; value: number; sold: number; unused: number }>);
 
-    // Group by denomination (value)
-    const denominationStats = vouchers.reduce((acc, voucher) => {
+    // Group by denomination (value) - only count UNUSED vouchers
+    const unusedVouchers = vouchers.filter(v => v.status === 'UNUSED');
+    const denominationStats = unusedVouchers.reduce((acc, voucher) => {
         const value = voucher.value;
         if (!acc[value]) {
             acc[value] = { count: 0, totalValue: 0 };
@@ -73,7 +74,7 @@ export default function StatsOverview({ vouchers, onStatusClick }: StatsOverview
             value: Number(value),
             count: data.count,
             totalValue: data.totalValue,
-            percentage: stats.total > 0 ? (data.count / stats.total) * 100 : 0
+            percentage: stats.unused > 0 ? (data.count / stats.unused) * 100 : 0
         }))
         .sort((a, b) => b.count - a.count);
 
@@ -296,7 +297,7 @@ export default function StatsOverview({ vouchers, onStatusClick }: StatsOverview
 
             {/* Denomination Breakdown */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Thống kê theo Mệnh giá</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Thống kê theo Mệnh giá (Còn trong kho)</h3>
                 {sortedDenominations.length === 0 ? (
                     <p className="text-gray-500 text-sm">Chưa có dữ liệu</p>
                 ) : (
